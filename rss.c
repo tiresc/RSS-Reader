@@ -19,6 +19,7 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 
 
 void download_feed(struct feed **rss_url){
+    
     // allocate memory for rss feed.
     struct feed *feed;
     feed = malloc(sizeof(feed));
