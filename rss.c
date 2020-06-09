@@ -1,48 +1,16 @@
-/***************************************************************************
- *                                  _   _ ____  _
- *  Project                     ___| | | |  _ \| |
- *                             / __| | | | |_) | |
- *                            | (__| |_| |  _ <| |___
- *                             \___|\___/|_| \_\_____|
- *
- * Copyright (C) 1998 - 2019, Daniel Stenberg, <daniel@haxx.se>, et al.
- *
- * This software is licensed as described in the file COPYING, which
- * you should have received as part of this distribution. The terms
- * are also available at https://curl.haxx.se/docs/copyright.html.
- *
- * You may opt to use, copy, modify, merge, publish, distribute and/or sell
- * copies of the Software, and permit persons to whom the Software is
- * furnished to do so, under the terms of the COPYING file.
- *
- * This software is distributed on an "AS IS" basis, WITHOUT WARRANTY OF ANY
- * KIND, either express or implied.
- *
- ***************************************************************************/ 
-/* <DESC>
- * Download a given URL into a local file named page.out.
- * </DESC>
- */ 
-#include <stdio.h>
-#include <stdlib.h>
+#include<stdio.h> 
+#include<stdlib.h>
+#include <string.h>
 #include <unistd.h>
 #include <curl/curl.h>
-void count_links(long *count,FILE *fp ){
-  char *test;
+#include "parse.h" 
 
-  while(fscanf(fp, "%s", test) == 1){
-    if(test[0] == '<' && test[1] == 'l'){
-      (*count)++;
-    }
-  }
+void clear_buffer(void)
+{
+    char c;
+    while((c=getchar()) != EOF && c != '\n'){};
 }
 
-struct MemoryStruct {
-  char *memory;
-  char site_address[100];
-  size_t size;
-
-};
 static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 {
   size_t written = fwrite(ptr, size, nmemb, (FILE *)stream);
@@ -50,44 +18,42 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 }
 
 
- 
-int main(int argc, char *argv[])
-{
-  CURL *curl_handle;
-  static const char *pagefilename = "index.html";
-  FILE *pagefile;
-  FILE *fp;
- 
-  /*if(argc < 2) {
-    printf("Usage: %s <URL>\n", argv[0]);
-    return 1;
-  }*/
- 
-  curl_global_init(CURL_GLOBAL_ALL);
- 
-  /* init the curl session */ 
-  curl_handle = curl_easy_init();
+void download_feed(struct feed **rss_url){
+    // allocate memory for rss feed.
+    struct feed *feed;
+    feed = malloc(sizeof(feed));
+    feed->rss_url = malloc(100*sizeof(char));
 
-  printf("URL? ");
-  char site_url[50];
+    *rss_url = feed;
+    CURL *curl_handle;
+    static const char *pagefilename = "index.html";
+    FILE *pagefile;
+    FILE *fp;
+ 
+    curl_global_init(CURL_GLOBAL_ALL);
+ 
+    /* init the curl session */ 
+    curl_handle = curl_easy_init();
 
-  fscanf( stdin, "%s", site_url );  
+    printf("URL? ");
+
+    fscanf( stdin, "%s", feed->rss_url );  
+    
+    /* set URL to get here */ 
+    curl_easy_setopt(curl_handle, CURLOPT_URL, feed->rss_url);
  
-  /* set URL to get here */ 
-  curl_easy_setopt(curl_handle, CURLOPT_URL, site_url);
+    /* Switch on full protocol/debug output while testing */ 
+    curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
  
-  /* Switch on full protocol/debug output while testing */ 
-  curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
+    /* disable progress meter, set to 0L to enable it */ 
+    curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
  
-  /* disable progress meter, set to 0L to enable it */ 
-  curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+    /* send all data to this function  */ 
+    curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data);
  
-  /* send all data to this function  */ 
-  curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data);
- 
-  /* open the file */ 
-  pagefile = fopen(pagefilename, "wb");
-  if(pagefile) {
+    /* open the file */ 
+    pagefile = fopen(pagefilename, "wb");
+    if(pagefile) {
  
     /* write the page body to this file handle */ 
     curl_easy_setopt(curl_handle, CURLOPT_WRITEDATA, pagefile);
@@ -101,37 +67,88 @@ int main(int argc, char *argv[])
  
   /* cleanup curl stuff */ 
   curl_easy_cleanup(curl_handle);
- 
+    
   curl_global_cleanup();
-  long count = 0;
-  //open downloaded file
-  fp = fopen("index.html", "r");
-  count_links(&count, fp);
-  printf("links: %d\n", count);
-  free(fp);
+  printf("downloaded!\n");
+
 }
-  /*int i = 0;
-  int j = 0;
-  */
 
-  //count number of lines with <link> at beginning
-  /*char *plinks;
-  plinks = malloc(count * sizeof(char));
-  while(fscanf(fp, "%s", links) == 1){
-    if(links[0] == '<' && links[1] == 'l' && links[2] == 'i'){
-      links[0] = ' ';
-      for(int i = 0; i < 295; i++){
-         //for(int j = 5; j > 0; j--){
-          //*(*(link+i)+j) = ' ';
-        //}
-      
-      //strncat(link[i], links,1000);
-      //i++;
+int main(void)
+{   
+    struct feed *nf;
+    download_feed(&nf);
+    char * line;
+    char * n;
+    size_t len = 0;
+    ssize_t read;
+    char *get_real_string;
+
+    FILE *fp;
+    fp = fopen("index.html", "r");
+    int r = 100 , c = 256, i, j, count; 
+    char *p;
+    int amount_of_titles = 0;
+
+    ///count titles
+    while((read = getline(&line, &len, fp)) != -1) 
+    {
+        p = strstr(line, "<title>");
+
+        if(p)
+        {
+            amount_of_titles++;
+            
+        }  
     }
-    puts(*link);
-  }
 
-  printf("Links: %d\n", count);   
- 
-  return 0;
-}}*/
+    fclose(fp);
+
+    // open file again to get titles
+    fp = fopen("index.html", "r");
+    len = 0;
+
+    //allocate list titles
+    char **titles = (char **)malloc(amount_of_titles * sizeof(char *));  
+    for (i=0; i<amount_of_titles; i++) 
+        titles[i] = (char *)malloc(c * sizeof(char));
+
+    i = 0;
+    
+    // put lines with <title> into string titles[i]
+    while((read = getline(&n, &len, fp)) != -1) 
+    {
+        p = strstr(n, "<title>");
+        
+        if(p)
+        {
+            strcpy(titles[i], n);
+            i++;   
+        }
+       
+    }
+
+    // removes tags for titles
+    for(i = 0; i < amount_of_titles; i++)
+    {
+        get_real_string = malloc(100 * sizeof(strlen(titles[i])));
+        strncat (get_real_string, titles[i], strlen(titles[i])-10);
+        strncpy(titles[i], get_real_string+11,strlen(titles[i]));
+        printf("\n");
+        printf("title %d: %s\n", i, titles[i]);
+
+    }
+    printf("\n");
+
+    // free the stuff.
+    free(nf);
+    fclose(fp);
+    free(get_real_string);
+    for (int i=0; i<amount_of_titles; i++) 
+    {
+        free(titles[i]);
+    }   
+    free(titles);
+    
+
+    exit(EXIT_SUCCESS);
+} 
