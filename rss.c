@@ -80,7 +80,7 @@ void count_tags(struct feed **new_feed, FILE *fp){
     size_t len = 0;
     char * line;
 
-   
+    n->amount_of_titles = 0;
     while((read = getline(&line, &len, fp)) != -1) 
     {
         n->find_titles = strstr(line, "<enclosure url=");
@@ -110,8 +110,8 @@ int main(void)
     int r = 100 , c = 500, j;
     char * n;
 
-    char *get_real_string;
-    char *get_real_strings;
+    
+    
 
     FILE *fp;
     fp = fopen("index.html", "r");
@@ -142,7 +142,6 @@ int main(void)
     int end, end_two;
 
            
-
     // put lines with <title> into string titles[i]
     while((read = getline(&n, &len, fp)) != -1) 
     {   
@@ -172,14 +171,17 @@ int main(void)
     // removes tags for titles
     for(i = 0; i < nf->amount_of_titles; i++)
     {
+        char *get_real_string;
+        char *get_real_strings;
         get_real_string = malloc(100 * sizeof(strlen(titles[i])));
         strncat (get_real_string, titles[i], strlen(titles[i])-end);
         strncpy(titles[i], get_real_string+real_pos+sizeof("<title"),strlen(titles[i]));
+        free(get_real_string);
 
         get_real_strings = malloc(100 * sizeof(strlen(nf->links[i])));
         strncat (get_real_strings, nf->links[i], strlen(nf->links[i])-end_two);
         strncpy(nf->links[i], get_real_strings+real_pos_two+sizeof("<feedburner:origEnclosureLink"),strlen(nf->links[i]));
-
+        free(get_real_strings);
        /* get_real_string_two = malloc(100 * sizeof(strlen(titles[i])));
         strncat (get_real_string_two, titles[i], strlen(titles[i])-end - 38);
         strncpy(titles[i], get_real_string_two+real_pos+sizeof("<enclosure url="),strlen(titles[i]));*/
@@ -213,7 +215,6 @@ int main(void)
 
     // free the stuff.
     free(nf);
-    free(get_real_string);
     for (int i=0; i<amount_of_titles; i++) 
     {
         free(titles[i]);
