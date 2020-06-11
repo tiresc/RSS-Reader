@@ -17,7 +17,7 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
   return written;
 }
 
-void download_feed(struct feed **rss_url){
+void download_feed(struct feed **rss_url,  char *save_file){
     
     // allocate memory for rss feed.
     struct feed *feed;
@@ -26,7 +26,8 @@ void download_feed(struct feed **rss_url){
 
     *rss_url = feed;
     CURL *curl_handle;
-    static const char *pagefilename = "index.html";
+    //static const char *pagefilename = "index.html";
+    char *pagefilename = save_file;
     FILE *pagefile;
     FILE *fp;
  
@@ -46,7 +47,7 @@ void download_feed(struct feed **rss_url){
     curl_easy_setopt(curl_handle, CURLOPT_VERBOSE, 1L);
  
     /* disable progress meter, set to 0L to enable it */ 
-    curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 1L);
+    curl_easy_setopt(curl_handle, CURLOPT_NOPROGRESS, 0L);
  
     /* send all data to this function  */ 
     curl_easy_setopt(curl_handle, CURLOPT_WRITEFUNCTION, write_data);
@@ -67,8 +68,7 @@ void download_feed(struct feed **rss_url){
  
   /* cleanup curl stuff */ 
   curl_easy_cleanup(curl_handle);
-    
-  curl_global_cleanup();
+  curl_global_cleanup();    
   printf("downloaded!\n");
 }
 
@@ -79,12 +79,11 @@ void count_tags(struct feed **new_feed, FILE *fp){
     ssize_t read;
     size_t len = 0;
     char * line;
-    int amount_of_titles = 0;
-    char *p;
+
    
     while((read = getline(&line, &len, fp)) != -1) 
     {
-        n->find_titles = strstr(line, "<title>");
+        n->find_titles = strstr(line, "<enclosure url=");
 
         if(n->find_titles)
         {
@@ -93,31 +92,30 @@ void count_tags(struct feed **new_feed, FILE *fp){
         }  
     }
     *new_feed = n;
-    
 }
 
 
 int main(void)
 {   
     struct feed *nf;
-    download_feed(&nf);
+    char *str = "index.html";
+    download_feed(&nf, str);
 
     ssize_t read;
     size_t len = 0;
     char * line;
     int amount_of_titles = 0;
-    char *p;
+    char *p, *pd;
     int i;
-    int r = 100 , c = 256, j;
+    int r = 100 , c = 500, j;
     char * n;
-    
-    
+
     char *get_real_string;
+    char *get_real_strings;
 
     FILE *fp;
     fp = fopen("index.html", "r");
   
-
     ///count titles
     count_tags(&nf, fp);
     fclose(fp);
@@ -131,17 +129,42 @@ int main(void)
     for (i=0; i<nf->amount_of_titles; i++) 
         titles[i] = (char *)malloc(c * sizeof(char));
 
-    i = 0;
+    nf->links = (char **)malloc(nf->amount_of_titles * sizeof(char *)); 
+    for (i=0; i<nf->amount_of_titles; i++) 
+        nf->links[i] = (char *)malloc(c * sizeof(char));
+
     
+
+    i = 0;
+    char *pos, *pos_two;
+    char *ending, *endor;
+    int real_pos, real_pos_two;
+    int end, end_two;
+
+           
+
     // put lines with <title> into string titles[i]
     while((read = getline(&n, &len, fp)) != -1) 
-    {
-        p = strstr(n, "<title>");
-        
+    {   
+        p = strstr(n,"<title>");
+        pd = strstr(n, "<feedburner:origEnclosureLink>");
         if(p)
         {
+            pos = strstr(n, "<title>");
+            ending = strstr(n, "</title>");
+            real_pos = abs(strlen(pos) - strlen(n));
+            end = abs(strlen(ending));
             strcpy(titles[i], n);
-            i++;   
+              
+        }
+        if(pd)
+        {
+            pos_two = strstr(n,"<feedburner:origEnclosureLink>" );
+            endor = strstr(n, "</feedburner:origEnclosureLink>");
+            real_pos_two = abs(strlen(pos_two) - strlen(n));
+            end_two = abs(strlen(endor));
+            strcpy(nf->links[i], n);
+            i++;
         }
        
     }
@@ -150,12 +173,42 @@ int main(void)
     for(i = 0; i < nf->amount_of_titles; i++)
     {
         get_real_string = malloc(100 * sizeof(strlen(titles[i])));
+        strncat (get_real_string, titles[i], strlen(titles[i])-end);
+        strncpy(titles[i], get_real_string+real_pos+sizeof("<title"),strlen(titles[i]));
+
+        get_real_strings = malloc(100 * sizeof(strlen(nf->links[i])));
+        strncat (get_real_strings, nf->links[i], strlen(nf->links[i])-end_two);
+        strncpy(nf->links[i], get_real_strings+real_pos_two+sizeof("<feedburner:origEnclosureLink"),strlen(nf->links[i]));
+
+       /* get_real_string_two = malloc(100 * sizeof(strlen(titles[i])));
+        strncat (get_real_string_two, titles[i], strlen(titles[i])-end - 38);
+        strncpy(titles[i], get_real_string_two+real_pos+sizeof("<enclosure url="),strlen(titles[i]));*/
+        printf("\n");
+        printf("url %d: %s\n", i, titles[i]);
+        printf("url %d: %s\n", i, nf->links[i]);
+    }
+   
+    //printf("pick number: ");
+    //fscanf(stdin, "%d", &number);
+    //nf->rss_url = titles[number];
+    //download_feed(&nf);
+     /*for(i = 0; i < nf->amount_of_titles; i++)
+    {
+        get_real_string = malloc(100 * sizeof(strlen(titles[i])));
         strncat (get_real_string, titles[i], strlen(titles[i])-10);
         strncpy(titles[i], get_real_string+11,strlen(titles[i]));
         printf("\n");
         printf("title %d: %s\n", i, titles[i]);
 
-    }
+    }*/
+
+    /*char *diff_string = "2020-06-10_noisia_radio_s06e24.mp3";
+    printf("Please enter number you'd like you'd like to download");
+    int number = 0;
+    fscanf(stdin, "%d", &number);
+    nf->rss_url = titles[number];
+    download_feed(&nf, "test.mp3");
+*/
     printf("\n");
 
     // free the stuff.
