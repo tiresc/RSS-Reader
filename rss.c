@@ -19,15 +19,14 @@ static size_t write_data(void *ptr, size_t size, size_t nmemb, void *stream)
 
 void print_list(struct rss_tags* n){
     while (n != NULL) {
-        printf(" %s\n", n->title);
-        
+        printf("%s \n %s\n", n->title, n->link);
         n = n->next;
     }
 }
 
 void download_feed(char *save_file){
     
-    size_t size=300; 
+    size_t size = 300; 
     char *rss_url;
     rss_url = malloc(size);
     memset(rss_url, 0, size);
@@ -90,7 +89,7 @@ void count_links(int *amount_of_links)
 
     while((read = getline(&line, &len, fp)) != -1) 
     {
-        find_titles = strstr(line, "<title>");
+        find_titles = strstr(line, "<feedburner:origEnclosureLink>");
 
         if(find_titles)
         {
@@ -101,11 +100,12 @@ void count_links(int *amount_of_links)
     fclose(fp);
 }
 
-void append(struct rss_tags** head_ref, char *new_title){
+void append(struct rss_tags** head_ref, char *new_title, char *new_link){
     struct rss_tags* new_node = (struct rss_tags*) malloc(sizeof(struct rss_tags));
     struct rss_tags *last = *head_ref;
     new_node->title = new_title;
-    
+    new_node->link = new_link;
+
     new_node->next = NULL;
 
     if(*head_ref == NULL)
@@ -121,6 +121,41 @@ void append(struct rss_tags** head_ref, char *new_title){
     return;
 }
 
+char *fix_string(int index, char *n, char *tag)
+{
+    char *start;
+    char *ending;
+    int real_pos = 0;
+    int end = 0;
+    //char *feed_burner  = "<feedburner:origEnclosureLink>";
+    //char *enclosure_url = "<enclosure url=";
+    //char **tags ={"<title>", "<link>", "<description>", " "};
+    size_t size = 100;
+    char *end_tag = malloc(size);
+    memset(end_tag, '\0', sizeof(end_tag));
+    strncpy(end_tag,"</", 2);
+    strncat(end_tag, tag+1 , sizeof(tag+1));
+    
+    //printf("end: %s", end_tag);
+
+    size_t length = sizeof(strlen(tag));
+    length = length-1;    
+    start = strstr(n, tag);
+    ending = strstr(n, end_tag);
+    real_pos = abs(strlen(start) - strlen(n));
+    end = abs(strlen(ending));
+
+    char *get_real_string = malloc(100 * sizeof(strlen(n)));
+    strncat (get_real_string, n, strlen(n)-end);
+    strncpy(n, get_real_string+real_pos+length,strlen(n));
+    free(get_real_string);
+    free(end_tag);
+
+    return n;
+
+
+}
+
 int main(void)
 {   
     struct rss_tags* head = NULL; 
@@ -131,11 +166,11 @@ int main(void)
     ssize_t read;
     size_t len = 0;
     char * line = NULL;
-    char *p;
+    char *p, *find_links;
     int i = 0;
     size_t c = 500;
     
-    char * n = NULL;
+    char * n;
 
     ///count titles
     count_links(&amount_of_links);
@@ -150,21 +185,48 @@ int main(void)
     for (i=0; i<amount_of_links; i++) 
         titles[i] = (char *)malloc(c * sizeof(char));
 
+
+    char **links = (char **)malloc(amount_of_links * sizeof(char *));  
+    for (i=0; i<amount_of_links; i++) 
+        links[i] = (char *)malloc(c * sizeof(char));
+  
+   
     i = 0;
+    char *pd, *r;
     // put lines with <title> into string titles[i]
     while((read = getline(&n, &len, fp)) != -1) 
     {   
         p = strstr(n,"<title>");
-        
+        find_links = strstr(n, "<feedburner:origEnclosureLink>");
         if(p)
-        {    
-            strcpy(titles[i], n); 
-            append(&head, titles[i]);
+        {   r = n;
+            r = fix_string(i, r, "<title>");
+            strcpy(titles[i], r); 
+        }
+        if(find_links)
+        {
+            pd = n;
+            pd = fix_string(i, pd, "<feedburner:origEnclosureLink>");
+            strcpy(links[i], pd); 
+            append(&head, titles[i], links[i]);
             i++;
         }
+        
+       
     }
 
     print_list(head);
+
+    for(i = 0; i < amount_of_links; i++){
+        free(titles[i]);
+    }
+ for(i = 0; i < amount_of_links; i++){
+        free(links[i]);
+    }
+
+    free(titles);
+    free(links);
+    
     fclose(fp);
     free(head);
 
