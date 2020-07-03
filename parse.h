@@ -11,3 +11,5 @@ struct MemoryStruct {
   char site_address[100];
   size_t size;
 };
+
+//changes 
