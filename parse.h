@@ -1,7 +1,7 @@
 struct rss_tags {
 	char *title;
 	char *link;
-	char *description;
+	char *desc;
 	char *mp3_link;
 	struct rss_tags* next;
 };	
