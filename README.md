@@ -1,10 +1,12 @@
 An rss reader
 
 
-TODO:
+Requirements:
 
-[]put in multiple links<br/>
-[]list the new links associated with the rss feed<br/>
-[]be able to mark each individual one read or not<br/>
-[]save rss feeds<br/>
-[]update links when there is a change<br/>
+*Download RSS Feed<br />
+*Parse 'episodes' (i.e. titles/mp3 links/ description/ upload date)<br />
+*list 'episodes'<br />
+*Allow user to choose from the list<br />
+*Download chosen mp3 file<br />
+*Generalize so this can be used for more than deprecated systems like feedburner<br />
+*Gui?<br />
