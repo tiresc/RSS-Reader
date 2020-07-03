@@ -7,12 +7,19 @@
 
 void print_list(struct rss_tags* n)
 {
-  FILE *fp= fopen("test.txt", "w+");
+  FILE *fp;
+   fp = fopen("test.txt", "w+");
     while (n != NULL) 
     {
       printf("%s", n->title);
+      fprintf(fp,"%s\n",n->title);
+
       printf("%s", n->link);
+      fprintf(fp,"%s\n",n->link);
+
       printf("%s", n->desc);
+      fprintf(fp,"%s\n",n->desc);
+
       n = n->next;
     }
     fclose(fp);
